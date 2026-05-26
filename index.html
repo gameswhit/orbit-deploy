@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrbitDeploy — Deployment Orchestration Platform</title>
+<meta name="description" content="Multi-cloud deployment platform with automated rollbacks, canary releases, and infrastructure-as-code management.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #06b6d4;
+  --grad: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%);
+  --bg1: #052e35;
+  --bg2: #031a20;
+  --surface: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08);
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --dim: #64748b;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg1);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+.bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.bg-grad {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(900px circle at 20% 20%, color-mix(in srgb, var(--primary) 20%, transparent) 0%, transparent 50%),
+    radial-gradient(700px circle at 80% 60%, color-mix(in srgb, var(--primary) 15%, transparent) 0%, transparent 50%),
+    radial-gradient(600px circle at 50% 90%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 50%);
+}
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 50%, black 0%, transparent 100%);
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+/* Nav */
+nav.top {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(20px);
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 700; }
+.logo-dot { width: 28px; height: 28px; border-radius: 8px; background: var(--grad); display: grid; place-items: center; font-size: 1rem; }
+.nav-links { display: flex; gap: 28px; list-style: none; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 0.92rem; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta { padding: 9px 20px; border-radius: 10px; background: var(--primary); color: white; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+.nav-cta:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+/* Hero */
+section.hero { padding: 100px 0 80px; text-align: center; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 100px; background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); font-size: 0.82rem; color: color-mix(in srgb, var(--primary) 80%, white); margin-bottom: 28px; }
+.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: pulse 2s infinite; box-shadow: 0 0 10px var(--primary); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+h1.hero-title { font-size: clamp(2.5rem, 6.5vw, 5rem); font-weight: 800; line-height: 1.05; margin-bottom: 24px; letter-spacing: -0.02em; }
+.gradient-text { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: 1.2rem; color: var(--muted); max-width: 680px; margin: 0 auto 40px; }
+.cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px; }
+.btn { padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 0.98rem; text-decoration: none; transition: all 0.2s; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent; }
+.btn-primary { background: var(--grad); color: white; box-shadow: 0 8px 32px color-mix(in srgb, var(--primary) 35%, transparent); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px color-mix(in srgb, var(--primary) 50%, transparent); }
+.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+
+/* Hero visual */
+.hero-visual { max-width: 980px; margin: 0 auto; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(20px); box-shadow: 0 30px 80px rgba(0,0,0,0.4); }
+.terminal { background: rgba(0,0,0,0.5); border-radius: 12px; padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; text-align: left; overflow-x: auto; }
+.term-header { display: flex; gap: 7px; margin-bottom: 14px; }
+.term-dot { width: 12px; height: 12px; border-radius: 50%; }
+.term-dot:nth-child(1) { background: #ef4444; }
+.term-dot:nth-child(2) { background: #f59e0b; }
+.term-dot:nth-child(3) { background: #22c55e; }
+.term-line { color: var(--muted); padding: 2px 0; }
+.term-prompt { color: var(--primary); }
+.term-out { color: #4ade80; }
+.term-cmd { color: var(--text); }
+
+/* Stats */
+section.stats { padding: 60px 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+.stat { text-align: center; padding: 28px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.stat-val { font-size: 2.5rem; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-label { color: var(--muted); font-size: 0.85rem; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Section heading */
+.section-head { text-align: center; margin-bottom: 56px; }
+.section-eyebrow { color: var(--primary); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+h2.section-title { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.15; margin-bottom: 18px; letter-spacing: -0.01em; }
+.section-desc { color: var(--muted); max-width: 620px; margin: 0 auto; font-size: 1.05rem; }
+
+/* Features */
+section.features { padding: 100px 0; }
+.features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.feature-card { padding: 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; transition: all 0.3s; position: relative; overflow: hidden; }
+.feature-card::before { content: ""; position: absolute; inset: 0; background: var(--grad); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.feature-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, transparent); transform: translateY(-4px); }
+.feature-card:hover::before { opacity: 0.04; }
+.feature-icon { width: 56px; height: 56px; border-radius: 14px; background: color-mix(in srgb, var(--primary) 14%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); display: grid; place-items: center; font-size: 1.7rem; margin-bottom: 22px; }
+.feature-card h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; }
+.feature-card p { color: var(--muted); font-size: 0.96rem; }
+
+/* Workflow */
+section.workflow { padding: 100px 0; }
+.workflow-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; position: relative; }
+.workflow-steps::before { content: ""; position: absolute; top: 36px; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, var(--primary), transparent); }
+.step { text-align: center; position: relative; z-index: 1; }
+.step-num { width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 50%; background: var(--bg1); border: 2px solid var(--primary); display: grid; place-items: center; font-size: 1.5rem; font-weight: 700; color: var(--primary); box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 12%, transparent); }
+.step h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+.step p { color: var(--muted); font-size: 0.9rem; }
+
+/* Integrations */
+section.integrations { padding: 100px 0; }
+.integrations-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.int-card { aspect-ratio: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; display: grid; place-items: center; font-size: 1.6rem; transition: all 0.2s; }
+.int-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, transparent); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); transform: scale(1.05); }
+.int-name { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+
+/* Pricing */
+section.pricing { padding: 100px 0; }
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.price-card { padding: 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; position: relative; }
+.price-card.featured { border-color: var(--primary); box-shadow: 0 12px 40px color-mix(in srgb, var(--primary) 25%, transparent); }
+.price-card.featured::before { content: "POPULAR"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--grad); padding: 5px 14px; border-radius: 100px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; }
+.price-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+.price-num { font-size: 3rem; font-weight: 800; margin: 16px 0; }
+.price-num span { font-size: 1rem; color: var(--muted); font-weight: 500; }
+.price-list { list-style: none; margin: 24px 0; }
+.price-list li { padding: 8px 0; color: var(--muted); font-size: 0.92rem; display: flex; align-items: center; gap: 10px; }
+.price-list li::before { content: "✓"; color: var(--primary); font-weight: 700; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* FAQ */
+section.faq { padding: 100px 0; }
+.faq-list { max-width: 800px; margin: 0 auto; }
+details.faq-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; overflow: hidden; transition: all 0.2s; }
+details.faq-item[open] { border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+summary { padding: 22px 28px; cursor: pointer; font-weight: 600; font-size: 1.02rem; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-size: 1.5rem; color: var(--primary); transition: transform 0.2s; }
+details[open] summary::after { transform: rotate(45deg); }
+.faq-answer { padding: 0 28px 22px; color: var(--muted); }
+
+/* CTA */
+section.final-cta { padding: 120px 0; text-align: center; }
+.cta-card { padding: 80px 40px; background: var(--grad); border-radius: 28px; box-shadow: 0 30px 80px color-mix(in srgb, var(--primary) 30%, transparent); position: relative; overflow: hidden; }
+.cta-card::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.2), transparent 50%); }
+.cta-card h2 { font-size: clamp(2rem, 4.5vw, 3.5rem); font-weight: 800; color: white; margin-bottom: 20px; position: relative; }
+.cta-card p { color: rgba(255,255,255,0.85); font-size: 1.1rem; margin-bottom: 32px; position: relative; max-width: 580px; margin-left: auto; margin-right: auto; }
+.cta-btn { background: white; color: var(--bg1); padding: 16px 36px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-flex; gap: 10px; position: relative; transition: transform 0.2s; }
+.cta-btn:hover { transform: translateY(-2px); }
+
+/* Footer */
+footer { padding: 60px 0 32px; border-top: 1px solid var(--border); margin-top: 80px; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-brand { max-width: 320px; }
+.footer-brand p { color: var(--muted); font-size: 0.92rem; margin-top: 14px; }
+.footer-col h4 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+.footer-col ul { list-style: none; }
+.footer-col li { padding: 6px 0; }
+.footer-col a { color: var(--muted); text-decoration: none; font-size: 0.92rem; transition: color 0.2s; }
+.footer-col a:hover { color: var(--primary); }
+.footer-bottom { padding-top: 30px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; color: var(--dim); font-size: 0.86rem; }
+
+@media (max-width: 900px) {
+  .features-grid, .pricing-grid, .footer-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .workflow-steps { grid-template-columns: repeat(2, 1fr); }
+  .integrations-grid { grid-template-columns: repeat(4, 1fr); }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<canvas class="bg-canvas" id="bgCanvas"></canvas>
+<div class="bg-grad"></div>
+<div class="bg-grid"></div>
+
+<nav class="top">
+  <div class="wrap nav-inner">
+    <div class="logo"><div class="logo-dot">🚀</div><span class="gradient-text">OrbitDeploy</span></div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#workflow">How It Works</a></li>
+      <li><a href="#integrations">Integrations</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <a href="#cta" class="nav-cta">Get Started →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Deployment Orchestration Platform</div>
+    <h1 class="hero-title">Deployment Orchestration <span class="gradient-text">Platform</span></h1>
+    <p class="hero-sub">Multi-cloud deployment platform with automated rollbacks, canary releases, and infrastructure-as-code management.</p>
+    <div class="cta-row">
+      <a href="#cta" class="btn btn-primary">Start Free Trial →</a>
+      <a href="#features" class="btn btn-ghost">Watch Demo</a>
+    </div>
+    <div class="hero-visual">
+      <div class="terminal">
+        <div class="term-header"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span></div>
+        <div class="term-line"><span class="term-prompt">$</span> <span class="term-cmd">npx orbit-deploy init</span></div>
+        <div class="term-line"><span class="term-out">✓</span> Initializing OrbitDeploy...</div>
+        <div class="term-line"><span class="term-out">✓</span> Connecting to MiMo AI backend...</div>
+        <div class="term-line"><span class="term-out">✓</span> Loading deployment orchestration platform...</div>
+        <div class="term-line"><span class="term-out">✓</span> Setup complete in 2.3s</div>
+        <div class="term-line"></div>
+        <div class="term-line"><span class="term-prompt">OrbitDeploy ready.</span> Open <span style="color: var(--primary)">http://localhost:3000</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-val">30s</div><div class="stat-label">Deploy Time</div></div>
+<div class="stat"><div class="stat-val">99.99%</div><div class="stat-label">Success Rate</div></div>
+<div class="stat"><div class="stat-val">4</div><div class="stat-label">Cloud Providers</div></div>
+<div class="stat"><div class="stat-val">0</div><div class="stat-label">Downtime</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-eyebrow">Capabilities</div>
+      <h2 class="section-title">Everything you need to <span class="gradient-text">ship faster</span></h2>
+      <p class="section-desc">Built from the ground up with developers in mind. Powerful primitives that compose into elegant solutions.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon">🚀</div><h3>Multi-Cloud Deploy</h3><p>Deploy to AWS, GCP, Azure, and edge locations with unified pipeline and automatic region failover.</p></div>
+<div class="feature-card"><div class="feature-icon">🐤</div><h3>Canary Releases</h3><p>Gradual rollout with automatic health checks, traffic splitting, and instant rollback on anomaly detection.</p></div>
+<div class="feature-card"><div class="feature-icon">📝</div><h3>GitOps Native</h3><p>Infrastructure as code with Git-driven deployments, drift detection, and plan-before-apply workflows.</p></div>
+<div class="feature-card"><div class="feature-icon">📊</div><h3>Deploy Analytics</h3><p>Deployment velocity metrics, change failure rate tracking, and MTTR analysis per team and service.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="workflow" class="workflow">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-eyebrow">Workflow</div>
+      <h2 class="section-title">From zero to production in <span class="gradient-text">4 steps</span></h2>
+      <p class="section-desc">No complex setup, no learning curve. Get up and running in minutes.</p>
+    </div>
+    <div class="workflow-steps">
+      <div class="step"><div class="step-num">1</div><h4>Connect</h4><p>Link your existing tools and data sources via one-click integrations.</p></div>
+      <div class="step"><div class="step-num">2</div><h4>Configure</h4><p>Set up your project with sensible defaults or customize every detail.</p></div>
+      <div class="step"><div class="step-num">3</div><h4>Build</h4><p>Use our visual builder or our SDK to create your workflows.</p></div>
+      <div class="step"><div class="step-num">4</div><h4>Deploy</h4><p>One-click deploy to production with auto-scaling and monitoring.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="integrations" class="integrations">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-eyebrow">Integrations</div>
+      <h2 class="section-title">Works with your <span class="gradient-text">favorite tools</span></h2>
+      <p class="section-desc">Connect to the tools you already love. 200+ native integrations, plus a powerful API.</p>
+    </div>
+    <div class="integrations-grid">
+      <div class="int-card" title="GitHub">🐙</div>
+      <div class="int-card" title="Slack">💬</div>
+      <div class="int-card" title="AWS">☁️</div>
+      <div class="int-card" title="Docker">🐳</div>
+      <div class="int-card" title="Kubernetes">⚙️</div>
+      <div class="int-card" title="Postgres">🐘</div>
+      <div class="int-card" title="MongoDB">🍃</div>
+      <div class="int-card" title="Redis">💎</div>
+      <div class="int-card" title="Stripe">💳</div>
+      <div class="int-card" title="Linear">📋</div>
+      <div class="int-card" title="Figma">🎨</div>
+      <div class="int-card" title="Notion">📓</div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" class="pricing">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-eyebrow">Pricing</div>
+      <h2 class="section-title">Simple, <span class="gradient-text">transparent pricing</span></h2>
+      <p class="section-desc">Start free, upgrade as you grow. No hidden fees, no surprises.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">Starter</div>
+        <div class="price-num">$0<span>/mo</span></div>
+        <ul class="price-list">
+          <li>Up to 3 projects</li>
+          <li>Community support</li>
+          <li>Basic integrations</li>
+          <li>1GB storage</li>
+        </ul>
+        <a href="#cta" class="btn btn-ghost btn-full">Start Free</a>
+      </div>
+      <div class="price-card featured">
+        <div class="price-name">Pro</div>
+        <div class="price-num">$29<span>/mo</span></div>
+        <ul class="price-list">
+          <li>Unlimited projects</li>
+          <li>Priority support</li>
+          <li>All integrations</li>
+          <li>100GB storage</li>
+          <li>Advanced analytics</li>
+        </ul>
+        <a href="#cta" class="btn btn-primary btn-full">Get Pro</a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Enterprise</div>
+        <div class="price-num">Custom</div>
+        <ul class="price-list">
+          <li>Custom contract</li>
+          <li>Dedicated support</li>
+          <li>SSO + SAML</li>
+          <li>Unlimited storage</li>
+          <li>SLA guarantee</li>
+        </ul>
+        <a href="#cta" class="btn btn-ghost btn-full">Contact Sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-eyebrow">FAQ</div>
+      <h2 class="section-title">Common <span class="gradient-text">questions</span></h2>
+      <p class="section-desc">Everything you need to know about OrbitDeploy. Can't find what you're looking for? Reach out.</p>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item"><summary>Does it replace Terraform?</summary><div class="faq-answer">Works alongside Terraform/Pulumi. We handle deployment orchestration; IaC tools manage state and planning.</div></details>
+<details class="faq-item"><summary>What's the rollback story?</summary><div class="faq-answer">Automatic rollback on health check failure, plus manual instant rollback. Previous deployment always available.</div></details>
+<details class="faq-item"><summary>How does pricing work?</summary><div class="faq-answer">Per-deployment pricing with unlimited environments. Start free with 50 deployments/month.</div></details>
+    </div>
+  </div>
+</section>
+
+<section id="cta" class="final-cta">
+  <div class="wrap">
+    <div class="cta-card">
+      <h2>Ready to get started?</h2>
+      <p>Join thousands of developers using OrbitDeploy to deployment orchestration platform. Free 14-day trial, no credit card required.</p>
+      <a href="#" class="cta-btn">Start Building Free →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo"><div class="logo-dot">🚀</div><span class="gradient-text">OrbitDeploy</span></div>
+        <p>Multi-cloud deployment platform with automated rollbacks, canary releases, and infrastructure-as-code management.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#workflow">Workflow</a></li>
+          <li><a href="#integrations">Integrations</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="#">Docs</a></li>
+          <li><a href="#">API Reference</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact</a></li>
+          <li><a href="#">Privacy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 OrbitDeploy. Built with MiMo AI. All rights reserved.</div>
+      <div>Made for the 100T Token Initiative</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Particle background
+const c = document.getElementById('bgCanvas');
+const ctx = c.getContext('2d');
+let w, h, particles = [];
+const COLOR = '#06b6d4';
+
+function resize() {
+  w = c.width = window.innerWidth;
+  h = c.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function spawn() {
+  particles = [];
+  const N = Math.floor((w * h) / 18000);
+  for (let i = 0; i < N; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+      o: Math.random() * 0.5 + 0.2
+    });
+  }
+}
+spawn();
+
+function loop() {
+  ctx.clearRect(0, 0, w, h);
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+    if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = COLOR + Math.floor(p.o * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+  }
+  // Connect nearby particles
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 120) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = COLOR + Math.floor((1 - d / 120) * 60).toString(16).padStart(2, '0');
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>
